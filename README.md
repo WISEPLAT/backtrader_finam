@@ -39,7 +39,7 @@ pip install git+https://github.com/WISEPLAT/backtrader.git
 ```shell
 pip install pytz requests grpcio protobuf types-protobuf googleapis-common-protos numpy pandas backtrader requests websockets matplotlib
 ```
-Обязательно! Выполните в корне вашего проекта через терминал эту команду:
+Обязательно! Выполните в корне вашего проекта через терминал эту команду (для избежания ошибки: **ModuleNotFoundError: No module named 'FinamPy'**):
 ```shell
 git clone https://github.com/WISEPLAT/FinamPy
 ```
@@ -167,7 +167,7 @@ Here is the link: [mementum/backtrader#472](https://github.com/mementum/backtrad
 ```shell
 pip install pytz requests grpcio protobuf types-protobuf googleapis-common-protos numpy pandas backtrader requests websockets matplotlib
 ```
-Important! Run this command in the root of your project via the terminal:
+Important! Run this command in the root of your project via the terminal (to prevent error: **ModuleNotFoundError: No module named 'FinamPy'**):
 ```shell
 git clone https://github.com/WISEPLAT/FinamPy
 ```
