@@ -39,15 +39,6 @@ class RSIStrategy(bt.Strategy):
             _interval = self.p.timeframe
             _date = bt.num2date(data.datetime[0])
 
-            try:
-                if data.p.supercandles[ticker][data.p.metric_name]:
-                    print("\tSuper Candle:", data.p.supercandles[ticker][data.p.metric_name][0])
-                    _data = data.p.supercandles[ticker][data.p.metric_name][0]
-                    _data['datetime'] = _date
-                    self.supercandles[ticker][data.p.metric_name].append(_data)
-            except:
-                pass
-
             if status in [0, 1]:
                 if status: _state = "False - History data"
                 else: _state = "True - Live data"

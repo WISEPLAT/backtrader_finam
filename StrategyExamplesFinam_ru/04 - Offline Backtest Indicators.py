@@ -63,15 +63,6 @@ class RSIStrategy(bt.Strategy):
             _interval = self.p.timeframe
             _date = bt.num2date(data.datetime[0])
 
-            try:
-                if data.p.supercandles[ticker][data.p.metric_name]:
-                    print("\tSuper Candle:", data.p.supercandles[ticker][data.p.metric_name][0])
-                    _data = data.p.supercandles[ticker][data.p.metric_name][0]
-                    _data['datetime'] = _date
-                    self.supercandles[ticker][data.p.metric_name].append(_data)
-            except:
-                pass
-
             if status in [0, 1]:
                 if status: _state = "False - History data"
                 else: _state = "True - Live data"
@@ -87,12 +78,6 @@ class RSIStrategy(bt.Strategy):
                     data.volume[0],
                     _state,
                 ))
-
-                try:
-                    if data.p.supercandles[0]:
-                        print("\tSuper Candle:", data.p.supercandles[0])
-                except:
-                    pass
 
                 print(f'\t - RSI =', self.rsi[ticker][0])
                 print(f"\t - crossover =", self.crossover[ticker].lines.crossover[0])
