@@ -61,6 +61,10 @@ class RSIStrategy(bt.Strategy):
             _interval = self.p.timeframe
             _date = bt.num2date(data.datetime[0])
 
+            _point = ticker.index('.')
+            board = ticker[0:_point]  # ticker class
+            symbol = ticker[_point + 1:]  # ticker +1 for point
+
             if status in [0, 1]:
                 if status: _state = "False - History data"
                 else: _state = "True - Live data"
@@ -93,10 +97,12 @@ class RSIStrategy(bt.Strategy):
                     # print(f" - buy {ticker} size = {size} at price = {price}")
 
                     # self.orders[data._name] = self.buy(data=data, exectype=bt.Order.Limit, price=price, size=size)
-                    rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=self.security_board,
-                                                       security_code=ticker,
+
+                    price = 273
+                    rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=board,
+                                                       security_code=symbol,
                                                        buy_sell=BUY_SELL_BUY, quantity=1,
-                                                       use_credit=True,
+                                                       use_credit=True,  # price=price,
                                                        )  # we do not specify the price to buy by market
 
                     self.order_time = dt.datetime.now()
@@ -116,8 +122,8 @@ class RSIStrategy(bt.Strategy):
                             print(f"\t - Sell by market {data._name}...")
 
                             # self.orders[data._name] = self.close()  # close position by market
-                            rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=self.security_board,
-                                                               security_code=ticker,
+                            rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=board,
+                                                               security_code=symbol,
                                                                buy_sell=BUY_SELL_SELL, quantity=1,
                                                                use_credit=True,
                                                                )  # we do not specify the price to buy by market
@@ -171,6 +177,7 @@ def get_some_info_for_tickers(tickers, live_prefix):
         _point = ticker.index('.')
         board = ticker[0:_point]  # class of ticker
         symbol = ticker[_point + 1:]  # ticker +1 for point
+        # print(board, symbol)
         i = store.get_symbol_info(board, symbol)
         info[f"{live_prefix}{ticker}"] = i
     return info
@@ -181,7 +188,6 @@ if __name__ == '__main__':
     live_prefix = ''  # prefix for submitting applications in live
     fp_provider = FinamPy(Config.AccessToken)  # Connect to the Finam API - for placing buy/sell orders
     client_id = Config.ClientIds[0]  # client id
-    security_board = "TQBR"  # class tickers
 
     security_board = "TQBR"  # class of ticker
     symbol = 'SBER'  # ticker

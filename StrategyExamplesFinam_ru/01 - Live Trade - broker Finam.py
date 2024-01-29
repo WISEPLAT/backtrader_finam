@@ -61,6 +61,10 @@ class RSIStrategy(bt.Strategy):
             _interval = self.p.timeframe
             _date = bt.num2date(data.datetime[0])
 
+            _point = ticker.index('.')
+            board = ticker[0:_point]  # Класс тикера
+            symbol = ticker[_point + 1:]  # Тикер +1 для точки
+
             if status in [0, 1]:
                 if status: _state = "False - History data"
                 else: _state = "True - Live data"
@@ -93,10 +97,12 @@ class RSIStrategy(bt.Strategy):
                     # print(f" - buy {ticker} size = {size} at price = {price}")
 
                     # self.orders[data._name] = self.buy(data=data, exectype=bt.Order.Limit, price=price, size=size)
-                    rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=self.security_board,
-                                                       security_code=ticker,
+
+                    price = 273
+                    rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=board,
+                                                       security_code=symbol,
                                                        buy_sell=BUY_SELL_BUY, quantity=1,
-                                                       use_credit=True,
+                                                       use_credit=True,  # price=price,
                                                        )  # price не указываем, чтобы купить по рынку
 
                     self.order_time = dt.datetime.now()
@@ -116,8 +122,8 @@ class RSIStrategy(bt.Strategy):
                             print(f"\t - Продаём по рынку {data._name}...")
 
                             # self.orders[data._name] = self.close()  # закрываем позицию по рынку
-                            rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=self.security_board,
-                                                               security_code=ticker,
+                            rez = self.p.fp_provider.new_order(client_id=self.client_id, security_board=board,
+                                                               security_code=symbol,
                                                                buy_sell=BUY_SELL_SELL, quantity=1,
                                                                use_credit=True,
                                                                )  # price не указываем, чтобы купить по рынку
@@ -171,6 +177,7 @@ def get_some_info_for_tickers(tickers, live_prefix):
         _point = ticker.index('.')
         board = ticker[0:_point]  # Класс тикера
         symbol = ticker[_point + 1:]  # Тикер +1 для точки
+        # print(board, symbol)
         i = store.get_symbol_info(board, symbol)
         info[f"{live_prefix}{ticker}"] = i
     return info
@@ -189,8 +196,8 @@ if __name__ == '__main__':
     ticker = f"{security_board}.{symbol}"
     # ticker2 = f"{security_board}.{symbol2}"
 
-    store = FinamStore(client_id=Config.ClientIds[0], access_token=Config.AccessToken)  # Storage Finam + authorization on Finam/Common
-    cerebro = bt.Cerebro(quicknotify=True)  # Initiating the "engine" BackTrader
+    store = FinamStore(client_id=Config.ClientIds[0], access_token=Config.AccessToken)  # Storage Finam + авторизация на Finam/Common
+    cerebro = bt.Cerebro(quicknotify=True)  # Инициируем "движок" BackTrader
 
     # live подключение к брокеру будем делать напрямую
 
