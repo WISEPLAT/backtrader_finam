@@ -2,6 +2,7 @@ import ast
 from datetime import datetime, timedelta
 from backtrader.dataseries import TimeFrame
 
+from .finam_broker import FinamBroker
 from .finam_feed import FinamData
 
 from FinamPy import FinamPy
@@ -31,6 +32,8 @@ class FinamStore(object):
 
         self._cash = 0
         self._value = 0
+
+        self._broker = FinamBroker(store=self)
         self._data = None
         self._datas = {}
         self._all_securities = {}
@@ -48,6 +51,11 @@ class FinamStore(object):
         self.next_run = datetime.now() + timedelta(minutes=1, seconds=3)  # Время следующего запуска запросов
 
         self.max_errors_requests_per_ticker = max_errors_requests_per_ticker  # при превышении этого значения, будет прекращена попытка получить данные  # -1 == бесконечно пытаться получить данные
+
+    def getbroker(self, use_positions=True):
+        self._broker.p.use_positions = use_positions
+        self._broker.get_all_active_positions()
+        return self._broker
 
     def getdata(self, **kwargs):  # timeframe, compression, from_date=None, live_bars=True
         """Метод получения исторических и live данных по тикеру"""

@@ -32,6 +32,8 @@ class FinamData(DataBase):
         self.from_date = None
         self.live_bars = None
 
+        self._state = None
+
         self.get_live_bars_from = None  # с какой даты получаем live бары
 
         self.ticker = self.p.dataname

@@ -81,15 +81,20 @@ class Config:
     * Пожалуйста, имейте в виду! Это live режим - если на рынке произойдет значительное изменение цены в сторону понижения более чем на 0.5% - ордер может быть выполнен.... 
     * **Не забудьте после теста снять с биржи выставленные заявки!**
 * 
-* **02 - Offline Backtest.py** - Пример торговой стратегии для теста на истории - не live режим - для двух тикеров SBER и LKOH.
+* **02 - Live Trade - LimitCancel.py** - Пример торговой стратегии в live режиме для тикера SBER - брокер Финам. 
+  * Пример выставления заявок на биржу через брокера Финам и их снятие.
+    * Пожалуйста, имейте в виду! Это live режим - если на рынке произойдет значительное изменение цены в сторону понижения более чем на 0.5% - ордер может быть выполнен.... 
+    * **Не забудьте после теста снять с биржи выставленные заявки!**
+* 
+* **03 - Offline Backtest.py** - Пример торговой стратегии для теста на истории - не live режим - для двух тикеров SBER и LKOH.
   * В стратегии показано как применять индикаторы (SMA, RSI) к нескольким тикерам одновременно.
     * Не live режим - для тестирования стратегий без отправки заявок на биржу!
 * 
-* **03 - Offline Backtest MultiPortfolio.py** - Пример торговой стратегии для теста на истории - не live режим - для множества тикеров, которые можно передавать в стратегию списком (SBER, LKOH, AFLT, GMKN). 
+* **04 - Offline Backtest MultiPortfolio.py** - Пример торговой стратегии для теста на истории - не live режим - для множества тикеров, которые можно передавать в стратегию списком (SBER, LKOH, AFLT, GMKN). 
   * В стратегии показано как применять индикаторы (SMA, RSI) к нескольким тикерам одновременно.
     * Не live режим - для тестирования стратегий без отправки заявок на биржу!
 * 
-* **04 - Offline Backtest Indicators.py** - Пример торговой стратегии для теста на истории с использованием индикаторов SMA и RSI - не live режим - для двух тикеров SBER и LKOH. 
+* **05 - Offline Backtest Indicators.py** - Пример торговой стратегии для теста на истории с использованием индикаторов SMA и RSI - не live режим - для двух тикеров SBER и LKOH. 
   * В стратегии показано как применять индикаторы (SMA, RSI) к нескольким тикерам одновременно.
     * генерит 177% дохода на момент записи видео )) 
     * Не live режим - для тестирования стратегий без отправки заявок на биржу!
@@ -208,16 +213,21 @@ The **StrategyExamplesMoexAlgo** folder contains the code of sample strategies.
   * Example of placing and cancel orders on the exchange with the use of broker Finam.
     * Please be aware! This is Live order - if market has a big change down in value of price more than 0.5% - the order will be completed.... 
     * **Do not forget to cancel the submitted orders from the exchange after the test!**
-
-* **02 - Offline Backtest.py** - An example of a trading strategy on a historical data - not live mode - for two SBER and LKOH tickers.
+*
+* **02 - Live Trade - LimitCancel.py** - An example of a live trading strategy for SBER ticker - broker Finam.
+  * Example of placing and cancel orders on the exchange with the use of broker Finam.
+    * Please be aware! This is Live order - if market has a big change down in value of price more than 0.5% - the order will be completed.... 
+    * **Do not forget to cancel the submitted orders from the exchange after the test!**
+*
+* **03 - Offline Backtest.py** - An example of a trading strategy on a historical data - not live mode - for two SBER and LKOH tickers.
   * The strategy shows how to apply indicators (SMA, RSI) to several tickers at the same time.
     * Not a live mode - for testing strategies without sending orders to the exchange!
 * 
-* **03 - Offline Backtest MultiPortfolio.py** - An example of a trading strategy on a historical data - not live mode - for a set of tickers that can be transferred to the strategy in a list (SBER, LKOH, AFLT, GMKN).
+* **04 - Offline Backtest MultiPortfolio.py** - An example of a trading strategy on a historical data - not live mode - for a set of tickers that can be transferred to the strategy in a list (SBER, LKOH, AFLT, GMKN).
   * The strategy shows how to apply indicators (SMA, RSI) to several tickers at the same time.
     * Not a live mode - for testing strategies without sending orders to the exchange!
 * 
-* **04 - Offline Backtest Indicators.py** - An example of a trading strategy for a history test using SMA and RSI indicators - not live mode - for two SBER and LKOH tickers.
+* **05 - Offline Backtest Indicators.py** - An example of a trading strategy for a history test using SMA and RSI indicators - not live mode - for two SBER and LKOH tickers.
   * The strategy shows how to apply indicators (SMA, RSI) to several tickers at the same time.
     * generates 177% of revenue at the time of video recording))
     * Non-live mode - for testing strategies without sending orders to the exchange!
