@@ -137,7 +137,7 @@ class FinamData(DataBase):
     def islive(self):
         return True
 
-    def start(self):
+    def start(self):  # "start" => "_load
         """Получение исторических данных"""
         DataBase.start(self)
 
@@ -166,19 +166,22 @@ class FinamData(DataBase):
                                                               interval=self.interval,
                                                               timeframe_txt=self.timeframe_txt, is_live_request=False)  # , is_test=True
 
-            self.get_live_bars_from = get_live_bars_from
+            if not klines.empty:  # если есть, что обрабатывать
+                self.get_live_bars_from = get_live_bars_from
 
-            print(f"- {self.ticker} - History data - Ok")
+                print(f"- {self.ticker} - History data - Ok")
 
-            klines = klines.values.tolist()
-            self.all_history_data = klines  # при первом получении истории - её всю записываем в виде list
+                klines = klines.values.tolist()
+                self.all_history_data = klines  # при первом получении истории - её всю записываем в виде list
 
-            try:
-                if self.p.drop_newest:
-                    klines.pop()
-                self._data.extend(klines)
-            except Exception as e:
-                print("Exception (try set from_date in utc format):", e)
+                try:
+                    if self.p.drop_newest:
+                        klines.pop()
+                    self._data.extend(klines)
+                except Exception as e:
+                    print("Exception (try set from_date in utc format):", e)
+            else:
+                print(f"- {self.ticker} - History data - False")
 
         else:
             self._start_live()
@@ -296,7 +299,7 @@ class FinamData(DataBase):
                 new_bars_dict = MessageToDict(self._store.fp_provider.get_intraday_candles(board, symbol, time_frame, interval_) if intraday
                     else self._store.fp_provider.get_day_candles(board, symbol, time_frame, interval_), including_default_value_fields=True)['candles']  # Получаем бары, переводим в словарь/список
             except Exception as e:  # Если получили ошибку
-                print(f'Ошибка при получении истории (history): {e}')  # то выводим ее в консоль
+                print(f'Ошибка при получении истории (history) {self.ticker}: {e}')  # то выводим ее в консоль
                 print(f'Скорее всего превысили max_requests candles 120, ждемс...')
                 sleep_seconds = 60
                 for i in range(int(sleep_seconds) + 2):
