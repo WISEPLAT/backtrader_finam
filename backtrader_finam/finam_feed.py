@@ -52,6 +52,7 @@ class FinamData(DataBase):
 
         self.all_history_data = None  # Вся история по тикеру
         self.all_ohlc_data = []  # Вся история по тикеру
+        self.ticker_has_error = False  # Есть ли ошибка при получении истории тикера
         # print("Ok", self.timeframe, self.compression, self.from_date, self._store, self.live_bars, self.board, self.symbol)
 
     def _load(self):
@@ -313,6 +314,8 @@ class FinamData(DataBase):
                 if max_errors_requests_per_ticker > 0:
                     max_errors_requests_per_ticker -= 1
                     continue  # заново выполнить запрос, если была ошибка
+                if max_errors_requests_per_ticker == 0:  # если не получили истории по тикеру, то с тикером некая ошибка
+                    self.ticker_has_error = True
 
 
             _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time(timeframe=timeframe_txt)
