@@ -32,6 +32,8 @@ class FinamData(DataBase):
         self.from_date = None
         self.live_bars = None
 
+        self.intraday = None
+
         self._state = None
 
         self.get_live_bars_from = None  # с какой даты получаем live бары
@@ -54,6 +56,55 @@ class FinamData(DataBase):
         self.all_ohlc_data = []  # Вся история по тикеру
         self.ticker_has_error = False  # Есть ли ошибка при получении истории тикера
         # print("Ok", self.timeframe, self.compression, self.from_date, self._store, self.live_bars, self.board, self.symbol)
+
+    def start(self):  # "start" => "_load
+        """Получение исторических данных"""
+        DataBase.start(self)
+
+        # если ТФ задан не корректно, то ничего не делаем
+        self.interval, self.timeframe_txt = self._store.get_interval(self.timeframe, self.compression)
+        if self.interval is None:
+            self._state = self._ST_OVER
+            self.put_notification(self.NOTSUPPORTED_TF)
+            return
+
+        # если не можем получить данные по тикеру, то ничего не делаем
+        self.symbol_info = self._store.get_symbol_info(self.board, self.symbol)
+        if self.symbol_info is None:
+            self._state = self._ST_OVER
+            self.put_notification(self.NOTSUBSCRIBED)
+            return
+
+        # получение исторических данных
+        if self.from_date:
+            self._state = self._ST_HISTORBACK
+            self.put_notification(self.DELAYED)  # Отправляем уведомление об отправке исторических (не новых) баров
+
+            klines, get_live_bars_from = self.get_candles(from_date=self.from_date,
+                                                              board=self.board,
+                                                              symbol=self.symbol,
+                                                              interval=self.interval,
+                                                              timeframe_txt=self.timeframe_txt, is_live_request=False)  # , is_test=True
+
+            if not klines.empty:  # если есть, что обрабатывать
+                self.get_live_bars_from = get_live_bars_from
+
+                print(f"- {self.ticker} - History data - Ok")
+
+                klines = klines.values.tolist()
+                self.all_history_data = klines  # при первом получении истории - её всю записываем в виде list
+
+                try:
+                    if self.p.drop_newest:
+                        klines.pop()
+                    self._data.extend(klines)
+                except Exception as e:
+                    print("Exception (try set from_date in utc format):", e)
+            else:
+                print(f"- {self.ticker} - History data - False")
+
+        else:
+            self._start_live()
 
     def _load(self):
         """Метод загрузки"""
@@ -124,6 +175,10 @@ class FinamData(DataBase):
                     self._data.extend(_klines)  # отправляем в обработку
                     if _klines or _empty:  # если получили новые данные
                         break
+                else:
+                    # здесь можно оптимизировать через потоки и запрашивать не так часто, пересчитывая сколько ждать
+                    sleep(1)
+                    break
 
                 # здесь можно оптимизировать через потоки и запрашивать не так часто, пересчитывая сколько ждать
                 sleep(1)
@@ -137,55 +192,6 @@ class FinamData(DataBase):
 
     def islive(self):
         return True
-
-    def start(self):  # "start" => "_load
-        """Получение исторических данных"""
-        DataBase.start(self)
-
-        # если ТФ задан не корректно, то ничего не делаем
-        self.interval, self.timeframe_txt = self._store.get_interval(self.timeframe, self.compression)
-        if self.interval is None:
-            self._state = self._ST_OVER
-            self.put_notification(self.NOTSUPPORTED_TF)
-            return
-
-        # если не можем получить данные по тикеру, то ничего не делаем
-        self.symbol_info = self._store.get_symbol_info(self.board, self.symbol)
-        if self.symbol_info is None:
-            self._state = self._ST_OVER
-            self.put_notification(self.NOTSUBSCRIBED)
-            return
-
-        # получение исторических данных
-        if self.from_date:
-            self._state = self._ST_HISTORBACK
-            self.put_notification(self.DELAYED)  # Отправляем уведомление об отправке исторических (не новых) баров
-
-            klines, get_live_bars_from = self.get_candles(from_date=self.from_date,
-                                                              board=self.board,
-                                                              symbol=self.symbol,
-                                                              interval=self.interval,
-                                                              timeframe_txt=self.timeframe_txt, is_live_request=False)  # , is_test=True
-
-            if not klines.empty:  # если есть, что обрабатывать
-                self.get_live_bars_from = get_live_bars_from
-
-                print(f"- {self.ticker} - History data - Ok")
-
-                klines = klines.values.tolist()
-                self.all_history_data = klines  # при первом получении истории - её всю записываем в виде list
-
-                try:
-                    if self.p.drop_newest:
-                        klines.pop()
-                    self._data.extend(klines)
-                except Exception as e:
-                    print("Exception (try set from_date in utc format):", e)
-            else:
-                print(f"- {self.ticker} - History data - False")
-
-        else:
-            self._start_live()
 
     def get_previous_future_candle_time(self, timeframe):
         # timeframe = "D1"
@@ -254,13 +260,13 @@ class FinamData(DataBase):
         time_frame = interval
         next_bar_open_utc = from_date.replace(tzinfo=timezone.utc)
 
-        intraday = True
-        if timeframe_txt in ["D1", "W1", "MN1"]: intraday = False
+        self.intraday = True
+        if timeframe_txt in ["D1", "W1", "MN1"]: self.intraday = False
 
         get_live_bars_from = None
         _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time(timeframe=timeframe_txt)
 
-        interval_ = IntradayCandleInterval(count=500) if intraday else DayCandleInterval(count=500)  # Нужно поставить максимальное кол-во баров. Максимум, можно поставить 500
+        interval_ = IntradayCandleInterval(count=500) if self.intraday else DayCandleInterval(count=500)  # Нужно поставить максимальное кол-во баров. Максимум, можно поставить 500
         from_ = getattr(interval_, 'from')  # Т.к. from - ключевое слово в Python, то получаем атрибут from из атрибута интервала
         # to_ = getattr(interval_, 'to')  # Аналогично будем работать с атрибутом to для единообразия
 
@@ -271,7 +277,7 @@ class FinamData(DataBase):
 
         while True:  # Будем получать данные пока не получим все
 
-            if intraday:  # Для интрадея datetime -> Timestamp
+            if self.intraday:  # Для интрадея datetime -> Timestamp
                 from_.seconds = Timestamp(seconds=int(next_bar_open_utc.timestamp())).seconds  # Дата и время начала интервала UTC
             else:  # Для дневных интервалов и выше datetime -> Date
                 date_from = Date(year=next_bar_open_utc.year, month=next_bar_open_utc.month, day=next_bar_open_utc.day)  # Дата начала интервала UTC
@@ -297,7 +303,7 @@ class FinamData(DataBase):
 
             new_bars_dict = []  # Будем получать историю
             try:  # При запросе истории Финам может выдать ошибку
-                new_bars_dict = MessageToDict(self._store.fp_provider.get_intraday_candles(board, symbol, time_frame, interval_) if intraday
+                new_bars_dict = MessageToDict(self._store.fp_provider.get_intraday_candles(board, symbol, time_frame, interval_) if self.intraday
                     else self._store.fp_provider.get_day_candles(board, symbol, time_frame, interval_), including_default_value_fields=True)['candles']  # Получаем бары, переводим в словарь/список
             except Exception as e:  # Если получили ошибку
                 print(f'Ошибка при получении истории (history) {self.ticker}: {e}')  # то выводим ее в консоль
@@ -325,27 +331,24 @@ class FinamData(DataBase):
             added_new_row = False
 
             if len(new_bars_dict):  # Если пришли новые бары
-                first_bar_open_dt = self._store.fp_provider.utc_to_msk_datetime(datetime.fromisoformat(new_bars_dict[0]['timestamp'][:-1])) if intraday else \
-                    datetime(new_bars_dict[0]['date']['year'], new_bars_dict[0]['date']['month'], new_bars_dict[0]['date']['day'])  # Дату и время первого полученного бара переводим из UTC в МСК
-                last_bar_open_dt = self._store.fp_provider.utc_to_msk_datetime(datetime.fromisoformat(new_bars_dict[-1]['timestamp'][:-1])) if intraday else \
-                    datetime(new_bars_dict[-1]['date']['year'], new_bars_dict[-1]['date']['month'], new_bars_dict[-1]['date']['day'])  # Дату и время последнего полученного бара переводим из UTC в МСК
+                first_bar_open_dt = self.get_bar_open_date_time(new_bars_dict[0])  # Дату и время первого полученного бара переводим из UTC в МСК
+                last_bar_open_dt = self.get_bar_open_date_time(new_bars_dict[-1])  # Дату и время последнего полученного бара переводим из UTC в МСК
 
                 for new_bar in new_bars_dict:  # Пробегаемся по всем полученным барам
-                    # Дату/время UTC получаем в формате ISO 8601. Пример: 2023-06-16T20:01:00Z
-                    # В статье https://stackoverflow.com/questions/127803/how-do-i-parse-an-iso-8601-formatted-date описывается проблема, что Z на конце нужно убирать
-                    dt = self._store.fp_provider.utc_to_msk_datetime(datetime.fromisoformat(new_bar['timestamp'][:-1])) if intraday else \
-                        datetime(new_bar['date']['year'], new_bar['date']['month'], new_bar['date']['day'])  # Дату и время переводим из UTC в МСК
-                    open_ = round(int(new_bar['open']['num']) * 10 ** -int(new_bar['open']['scale']), int(new_bar['open']['scale']))
-                    high = round(int(new_bar['high']['num']) * 10 ** -int(new_bar['high']['scale']), int(new_bar['high']['scale']))
-                    low = round(int(new_bar['low']['num']) * 10 ** -int(new_bar['low']['scale']), int(new_bar['low']['scale']))
-                    close = round(int(new_bar['close']['num']) * 10 ** -int(new_bar['close']['scale']), int(new_bar['close']['scale']))
+                    dt = self.get_bar_open_date_time(new_bar)
+                    open_ = self.get_bar_price(new_bar['open'])
+                    high = self.get_bar_price(new_bar['high'])
+                    low = self.get_bar_price(new_bar['low'])
+                    close = self.get_bar_price(new_bar['close'])
                     volume = int(new_bar['volume'])
+                    bar = dict(datetime=dt, open=open_, high=high, low=low, close=close, volume=volume)
 
                     if dt < _current_candle_time and not is_live_request:  # текущий формируемый бар нам не нужен!!! - для запроса исторических данных
-                        new_bars_list.append({'datetime': dt, 'open': open_, 'high': high, 'low': low, 'close': close, 'volume': volume})
+                        new_bars_list.append(bar)
 
-                    if dt <= _previous_candle_time and is_live_request:  # текущий формируемый бар нам не нужен!!! - для live сравниваем с другим числом!!!
-                        new_bars_list.append({'datetime': dt, 'open': open_, 'high': high, 'low': low, 'close': close, 'volume': volume})
+                    # if dt <= _previous_candle_time and is_live_request:  # текущий формируемый бар нам не нужен!!! - для live сравниваем с другим числом!!!
+                    if dt <= _current_candle_time and is_live_request:  # текущий формируемый бар нам не нужен!!! - для live сравниваем с другим числом!!!
+                        new_bars_list.append(bar)
                         # print(get_live_bars_from, _previous_candle_time, _current_candle_time, _future_candle_time)
 
                     row = {'datetime': dt, 'open': open_, 'high': high, 'low': low, 'close': close, 'volume': volume}
@@ -401,3 +404,15 @@ class FinamData(DataBase):
             return df, get_live_bars_from
 
         return df, get_live_bars_from
+
+    def get_bar_open_date_time(self, bar) -> datetime:
+        """Дата и время открытия бара. Переводим из GMT в MSK для интрадея. Оставляем в GMT для дневок и выше."""
+        # Дату/время UTC получаем в формате ISO 8601. Пример: 2023-06-16T20:01:00Z
+        # В статье https://stackoverflow.com/questions/127803/how-do-i-parse-an-iso-8601-formatted-date описывается проблема, что Z на конце нужно убирать
+        return self._store.fp_provider.utc_to_msk_datetime(datetime.fromisoformat(bar['timestamp'][:-1])) if self.intraday else \
+            datetime(bar['date']['year'], bar['date']['month'], bar['date']['day'])  # Дату/время переводим из UTC в МСК
+
+    @staticmethod
+    def get_bar_price(bar_price) -> float:
+        """Цена бара"""
+        return round(int(bar_price['num']) * 10 ** -int(bar_price['scale']), int(bar_price['scale']))
