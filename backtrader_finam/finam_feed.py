@@ -53,9 +53,12 @@ class FinamData(DataBase):
         self._data = deque()
 
         self.all_history_data = None  # Вся история по тикеру
-        self.all_ohlc_data = []  # Вся история по тикеру
+        self.all_ohlc_data = []  # Вся история по тикеру - только дата
+        self.all_ohlc_data_bars = []  # Вся история по тикеру - весь бар
         self.ticker_has_error = False  # Есть ли ошибка при получении истории тикера
         # print("Ok", self.timeframe, self.compression, self.from_date, self._store, self.live_bars, self.board, self.symbol)
+
+        self.buf_klines_last_sec = {}
 
     def start(self):  # "start" => "_load
         """Получение исторических данных"""
@@ -92,6 +95,14 @@ class FinamData(DataBase):
                 print(f"- {self.ticker} - History data - Ok")
 
                 klines = klines.values.tolist()
+                                
+                # # -last row if live mode, as it can be in process of forming live bar
+                # if self.live_bars:
+                #     dt = klines[-1][0]  # datetime of lastr row
+                #     _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time()
+                #     if datetime.now() < _current_candle_time + timedelta(seconds=15):
+                #         klines = klines[:-1]
+                
                 self.all_history_data = klines  # при первом получении истории - её всю записываем в виде list
 
                 try:
@@ -142,6 +153,7 @@ class FinamData(DataBase):
 
     def _start_live(self):
         """Получение live данных"""
+        # buf_klines_last_sec = {}
         while True:
             if self.live_bars:
 
@@ -151,7 +163,6 @@ class FinamData(DataBase):
                     self.put_notification(self.LIVE)
 
                 if not self.get_live_bars_from:
-                    # self.get_live_bars_from = datetime.now().date()
                     self.get_live_bars_from = datetime.combine(datetime.now().date(), time.min)
                 else:
                     # self.get_live_bars_from = self.get_live_bars_from.date()
@@ -167,11 +178,65 @@ class FinamData(DataBase):
                     new_klines = klines.values.tolist()  # берем новые строки данных
                     _empty = True
                     _klines = []
+
+                    _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time()
+                    # print(_previous_candle_time, _current_candle_time, _future_candle_time)
+
+                    # 2024-02-21 16:29:00 / TQBR.SBER [M1] - Open: 283.81, High: 283.98, Low: 283.81, Close: 283.93, Volume: 135750.0 - Live: False - History data
+                    # 2024-02-21 16:30:00 / TQBR.SBER [M1] - Open: 283.93, High: 283.99, Low: 283.87, Close: 283.88, Volume: 116430.0 - Live: False - History data
+                    # 2024-02-21 16:31:00 / TQBR.SBER [M1] - Open: 283.87, High: 283.89, Low: 283.83, Close: 283.84, Volume: 31870.0 - Live: False - History data
+                    # Live started for ticker: TQBR.SBER
+                    # 2024-02-21 16:32:00 | 2024-02-21 16:32:00 2024-02-21 16:33:00 2024-02-21 16:34:00 | 2024-02-21 16:33:00.552678
+                    # 2024-02-21 16:32:00 / TQBR.SBER [M1] - Open: 283.84, High: 283.98, Low: 283.83, Close: 283.92, Volume: 61240.0 - Live: True - Live data
+                    # 2024-02-21 16:32:00 | 2024-02-21 16:32:00 2024-02-21 16:33:00 2024-02-21 16:34:00 | 2024-02-21 16:33:01.673543
+                    # 2024-02-21 16:32:00 / TQBR.SBER [M1] - Open: 283.84, High: 283.98, Low: 283.83, Close: 283.93, Volume: 63620.0 - Live: True - Live data
+                    # 2024-02-21 16:32:00 | 2024-02-21 16:32:00 2024-02-21 16:33:00 2024-02-21 16:34:00 | 2024-02-21 16:33:11.427635
+                    # 2024-02-21 16:32:00 / TQBR.SBER [M1] - Open: 283.84, High: 283.98, Low: 283.83, Close: 283.9, Volume: 65500.0 - Live: True - Live data
+                    # 2024-02-21 16:33:00 | 2024-02-21 16:33:00 2024-02-21 16:34:00 2024-02-21 16:35:00 | 2024-02-21 16:34:00.445795
+                    # 2024-02-21 16:33:00 / TQBR.SBER [M1] - Open: 283.89, High: 283.9, Low: 283.74, Close: 283.77, Volume: 66520.0 - Live: True - Live data
+                    # 2024-02-21 16:33:00 | 2024-02-21 16:33:00 2024-02-21 16:34:00 2024-02-21 16:35:00 | 2024-02-21 16:34:11.141905
+                    # 2024-02-21 16:33:00 / TQBR.SBER [M1] - Open: 283.89, High: 283.9, Low: 283.73, Close: 283.74, Volume: 71170.0 - Live: True - Live data
+                    # Достигнут предел 120 запросов в минуту. Ждем 9.603178 с до следующей группы запросов...
+                    # 9 8 7 6 5 4 3 2 1 0 0
+                    # 2024-02-21 16:34:00 | 2024-02-21 16:34:00 2024-02-21 16:35:00 2024-02-21 16:36:00 | 2024-02-21 16:35:00.465380
+                    # 2024-02-21 16:34:00 / TQBR.SBER [M1] - Open: 283.74, High: 283.74, Low: 283.66, Close: 283.7, Volume: 40950.0 - Live: True - Live data
+                    # 2024-02-21 16:34:00 | 2024-02-21 16:34:00 2024-02-21 16:35:00 2024-02-21 16:36:00 | 2024-02-21 16:35:11.212434
+                    # 2024-02-21 16:34:00 / TQBR.SBER [M1] - Open: 283.74, High: 283.74, Low: 283.66, Close: 283.7, Volume: 43500.0 - Live: True - Live data
+
+                    # print("----------")
                     for kline in new_klines:
-                        if kline not in self.all_history_data:  # если такой строки данных нет,
-                            self.all_history_data.append(kline)
-                            _klines.append(kline)
-                            _empty = False
+                        # dt = datetime.fromtimestamp(int(kline[0]) / 1000)
+                        dt = kline[0]
+                        # print(dt, "|", _previous_candle_time, _current_candle_time, _future_candle_time, "|", datetime.now())
+                        if dt <= _previous_candle_time:
+                            # print(dt, "|", _previous_candle_time, _current_candle_time, _future_candle_time, "|", datetime.now())
+                            self.buf_klines_last_sec[dt] = kline  # can be several for one time
+                            # if kline not in self.all_history_data:  # if there is no such data row,
+                            #     self.all_history_data.append(kline)
+                            #     _klines.append(kline)
+                            #     _empty = False
+                        # print("len(self.buf_klines_last_sec)", len(self.buf_klines_last_sec))
+                    # print("----------")
+
+                    # print(len(buf_klines_last_sec), _current_candle_time + timedelta(seconds=1) < datetime.now() < _current_candle_time + timedelta(seconds=3))
+                    # print(dt, "|", _previous_candle_time, _current_candle_time, _future_candle_time, "|", datetime.now())
+                    # if len(buf_klines_last_sec) and _current_candle_time + timedelta(seconds=1) < datetime.now() < _current_candle_time + timedelta(seconds=3):
+
+                    # if we got second dt for new candle
+                    if len(self.buf_klines_last_sec) > 1 or \
+                            (len(self.buf_klines_last_sec) == 1
+                             and datetime.now() > _current_candle_time + timedelta(seconds=15)):  # or only one candle +15 sec waiting
+                        for dt, kline in self.buf_klines_last_sec.items():
+                            if kline not in self.all_history_data:  # if there is no such data row,
+                                # print(dt, "|", _previous_candle_time, _current_candle_time, _future_candle_time, "|", datetime.now())
+                                self.all_history_data.append(kline)
+                                _klines.append(kline)
+                                _empty = False
+                                self.get_live_bars_from = dt
+                            del self.buf_klines_last_sec[dt]
+                            break  # as we need only first value!
+                        # print("new len(self.buf_klines_last_sec)", len(self.buf_klines_last_sec))
+
                     self._data.extend(_klines)  # отправляем в обработку
                     if _klines or _empty:  # если получили новые данные
                         break
@@ -193,8 +258,8 @@ class FinamData(DataBase):
     def islive(self):
         return True
 
-    def get_previous_future_candle_time(self, timeframe):
-        # timeframe = "D1"
+    def get_previous_future_candle_time(self, ):
+        timeframe = self.timeframe_txt
         now = datetime.now()
         # now = datetime.datetime.fromisoformat("2023-03-20 00:00")
         now_hour = now.hour
@@ -264,7 +329,7 @@ class FinamData(DataBase):
         if timeframe_txt in ["D1", "W1", "MN1"]: self.intraday = False
 
         get_live_bars_from = None
-        _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time(timeframe=timeframe_txt)
+        _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time()
 
         interval_ = IntradayCandleInterval(count=500) if self.intraday else DayCandleInterval(count=500)  # Нужно поставить максимальное кол-во баров. Максимум, можно поставить 500
         from_ = getattr(interval_, 'from')  # Т.к. from - ключевое слово в Python, то получаем атрибут from из атрибута интервала
@@ -324,7 +389,7 @@ class FinamData(DataBase):
                     self.ticker_has_error = True
 
 
-            _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time(timeframe=timeframe_txt)
+            _previous_candle_time, _current_candle_time, _future_candle_time = self.get_previous_future_candle_time()
 
             new_bars_list = []  # Список новых бар
             new_ohlc_rows = []  # Список новых бар
@@ -343,19 +408,22 @@ class FinamData(DataBase):
                     volume = int(new_bar['volume'])
                     bar = dict(datetime=dt, open=open_, high=high, low=low, close=close, volume=volume)
 
+                    # history
                     if dt < _current_candle_time and not is_live_request:  # текущий формируемый бар нам не нужен!!! - для запроса исторических данных
                         new_bars_list.append(bar)
-
-                    # if dt <= _previous_candle_time and is_live_request:  # текущий формируемый бар нам не нужен!!! - для live сравниваем с другим числом!!!
-                    if dt <= _current_candle_time and is_live_request:  # текущий формируемый бар нам не нужен!!! - для live сравниваем с другим числом!!!
-                        new_bars_list.append(bar)
-                        # print(get_live_bars_from, _previous_candle_time, _current_candle_time, _future_candle_time)
-
-                    row = {'datetime': dt, 'open': open_, 'high': high, 'low': low, 'close': close, 'volume': volume}
-                    if dt not in self.all_ohlc_data and dt <= _previous_candle_time and row not in new_ohlc_rows:
-                        new_ohlc_rows.append(row)
+                        new_ohlc_rows.append(bar)
                         self.all_ohlc_data.append(dt)
+                        self.all_ohlc_data_bars.append(bar)
                         added_new_row = True
+
+                    # live
+                    if is_live_request:  #
+                        new_bars_list.append(bar)
+                        if bar not in self.all_ohlc_data_bars:
+                            new_ohlc_rows.append(bar)
+                            self.all_ohlc_data.append(dt)
+                            self.all_ohlc_data_bars.append(bar)
+                            added_new_row = True
 
                 if added_new_row:
                     stats = pd.DataFrame(new_ohlc_rows)  # Из списка создаем pandas DataFrame
