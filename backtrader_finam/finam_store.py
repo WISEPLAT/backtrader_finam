@@ -28,7 +28,7 @@ class FinamStore(object):
 
         self.client_id = client_id
         print("Авторизуемся на Finam")
-        self.fp_provider = FinamPy(access_token)
+        self.fp_provider = FinamPy(client_id, access_token)
 
         self._cash = 0
         self._value = 0

@@ -353,6 +353,7 @@ class FinamData(DataBase):
             if self._store.requests >= self._store.max_requests:  # Если достигли допустимого кол-ва запросов в минуту
                 sleep_seconds = (self._store.next_run - datetime.now()).total_seconds()  # Время ожидания 1 минута с первого запроса
                 if sleep_seconds < 0: sleep_seconds = abs(60 - abs(sleep_seconds))  # fix minus time
+                if sleep_seconds > 60: sleep_seconds = 60
                 print('Достигнут предел', self._store.max_requests, 'запросов в минуту. Ждем', sleep_seconds, 'с до следующей группы запросов...')
                 for i in range(int(sleep_seconds) + 2):
                     print(f"{int(sleep_seconds - i)}", end=" ")
